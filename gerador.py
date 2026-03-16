@@ -5,12 +5,12 @@ from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 # Configuração da página do site
-st.set_page_config(page_title="PPC - Memória de Cálculo", page_icon="📊")
+st.set_page_config(page_title="PPC - Gerador", page_icon="📊")
 
-st.title("📊 Gerador de Memória de Cálculo - Base Ouro")
+st.title("📊 Gerador de Memória de Cálculo")
 st.markdown("Arraste a planilha exportada do sistema abaixo:")
 
-# --- ÁREA DE ARRASTAR ARQUIVO (Substitui o glob) ---
+# Área de Upload
 arquivo_upload = st.file_uploader("Selecione o arquivo Excel", type=["xlsx"])
 
 def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_imposto, razao, cnpj, comp):
@@ -25,7 +25,7 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                          top=Side(style='thin'), bottom=Side(style='thin'))
     align_center = Alignment(horizontal='center', vertical='center')
 
-    # Cabeçalho fixado
+    # Cabeçalho
     for row_num, texto in enumerate([f'RAZÃO SOCIAL: {razao}', f'CNPJ: {cnpj}', f'{titulo_imposto} - COMPETÊNCIA {comp}'], 2):
         ws.merge_cells(start_row=row_num, start_column=2, end_row=row_num, end_column=10)
         cell = ws.cell(row=row_num, column=2)
@@ -99,12 +99,11 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                 if length > max_length: max_length = length
         ws.column_dimensions[column_letter].width = max_length + 4
 
-# --- EXECUÇÃO AO CARREGAR ARQUIVO ---
+# Execução
 if arquivo_upload:
     try:
         df = pd.read_excel(arquivo_upload)
         
-        # Sua lógica de ISS Somada
         df['ISS_TOTAL'] = df['ISS Dentro do Município'].fillna(0) + df['ISS Fora do Município'].fillna(0)
         df['BASE_ISS_TOTAL'] = df['Base de Cálculo ISS'].fillna(0)
         df['ALIQ_ISS_TOTAL'] = df['% ISS Dentro do Município'].fillna(0) + df['% ISS Fora do Município'].fillna(0)
@@ -115,7 +114,6 @@ if arquivo_upload:
         comp_formatada = data_comp.strftime('%m.%Y')
         comp_titulo = data_comp.strftime('%m/%Y')
 
-        # Gerar o arquivo na memória para download
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             m_base = {'Emissão NFe': 'Data Emissão', 'Número NFe': 'Nota Fiscal', 'Serviço Federal': 'Cód. Serviço', 'Prestador': 'Prestador', 'Cnpj/Cpf Prestador': 'CNPJ', 'Valor NFe': 'Vlr Contábil'}
@@ -132,14 +130,13 @@ if arquivo_upload:
             aplicar_estilo_ppc(writer, df[df['ISS_TOTAL'] > 0], m_iss, 'ISS', 'ISS', razao_cliente, cnpj_cliente, comp_titulo)
             aplicar_estilo_ppc(writer, df[df['Valor INSS'] > 0], m_inss, 'INSS', 'INSS', razao_cliente, cnpj_cliente, comp_titulo)
 
-        st.success(f"✅ Memória de Cálculo de {razao_social} pronta!")
+        st.success(f"✅ Memória de Cálculo de {razao_cliente} pronta!")
         
         st.download_button(
-            label="📥 Baixar Memória de Cálculo (Base Ouro)",
+            label="📥 Baixar Memória de Cálculo",
             data=output.getvalue(),
             file_name=f"{razao_cliente} - Memoria de Calculo Retidos {comp_formatada}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
     except Exception as e:
-        st.error(f"Erro crítico: {e}")
+        st.error(f"Erro: {e}")
