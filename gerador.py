@@ -51,6 +51,12 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
         for col_idx in range(2, 11):
             ws.cell(row=row_msg, column=col_idx).border = thin_border
     else:
+        # --- AJUSTE NO CÓDIGO DE SERVIÇO ---
+        # Forçamos a coluna de serviço a ser texto e usar ponto
+        for col_orig, col_dest in colunas_mapeadas.items():
+            if col_dest == 'Cód. Serviço':
+                df_filtrado[col_orig] = df_filtrado[col_orig].astype(str).str.replace(',', '.')
+
         dados_finais = df_filtrado[list(colunas_mapeadas.keys())].rename(columns=colunas_mapeadas)
         moeda_cols = ['Vlr Contábil', 'Base IRRF', 'Valor IRRF', 'Base CSR', 'Total PCC', 'ISS', 'Valor INSS', 'Base INSS', 'Base ISS']
         
