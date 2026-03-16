@@ -105,11 +105,11 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
 
 # --- INTERFACE STREAMLIT ---
 with st.sidebar:
-    st.image("https://www.ppcaudit.com.br/wp-content/uploads/2017/07/logo-ppc.png", width=150) # Logo genérica ou use texto
+    st.image("https://www.ppcaudit.com.br/wp-content/uploads/2017/07/logo-ppc.png", width=150)
     st.title("⚙️ Painel Fiscal")
     st.markdown("---")
     st.info("Este app transforma o relatório bruto do UneCont em uma Memória de Cálculo formatada.")
-    st.caption("Desenvolvido para Marcos Paulo | Versão 2.0")
+    st.caption("Desenvolvido para Marcos Paulo | Versão 2.1")
 
 st.title("📊 Gerador de Memória de Cálculo")
 st.markdown("Arraste o arquivo baixado do **UneCont** abaixo para iniciar o processamento.")
@@ -120,6 +120,10 @@ if arquivo_upload:
     try:
         df = pd.read_excel(arquivo_upload)
         
+        # --- CORREÇÃO DO CÓDIGO DE SERVIÇO (Troca , por .) ---
+        if 'Serviço Federal' in df.columns:
+            df['Serviço Federal'] = df['Serviço Federal'].astype(str).str.replace(',', '.', regex=False)
+
         df['ISS_TOTAL'] = df['ISS Dentro do Município'].fillna(0) + df['ISS Fora do Município'].fillna(0)
         df['BASE_ISS_TOTAL'] = df['Base de Cálculo ISS'].fillna(0)
         df['ALIQ_ISS_TOTAL'] = df['% ISS Dentro do Município'].fillna(0) + df['% ISS Fora do Município'].fillna(0)
