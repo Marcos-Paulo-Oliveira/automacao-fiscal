@@ -17,9 +17,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("📝 Gerador de Relatório Consolidado")
-st.info("Arraste sua **Memória de Cálculo (Base Ouro)** abaixo para gerar o relatório da DCTFWeb.")
+st.info("Arraste sua **Memória de Cálculo (Base Ouro)** abaixo para gerar o relatório consolidado.")
 
-# Upload do arquivo gerado anteriormente
 arquivo_upload = st.file_uploader("Selecione a Memória de Cálculo (xlsx)", type=["xlsx"])
 
 if arquivo_upload:
@@ -30,7 +29,7 @@ if arquivo_upload:
         df_busca = xl.parse(xl.sheet_names[0], header=None).astype(str)
         razao_social, cnpj, competencia = "Não Encontrado", "Não Encontrado", "00/0000"
 
-        for i in range(min(len(df_busca), 10)):
+        for i in range(min(len(df_busca), 15)):
             for j in range(len(df_busca.columns)):
                 celula = df_busca.iloc[i, j]
                 if "RAZÃO SOCIAL:" in celula: razao_social = celula.replace("RAZÃO SOCIAL:", "").strip()
@@ -39,27 +38,34 @@ if arquivo_upload:
 
         st.success(f"📌 Empresa Detectada: **{razao_social}**")
 
-        # Inputs manuais na lateral ou colunas
         st.subheader("🔢 Informações Manuais (Folha/Trabalho)")
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: inss_folha = st.number_input("INSS Folha (eSocial)", min_value=0.0, step=0.01, format="%.2f")
         with col_m2: ir_0588 = st.number_input("IRRF 0588 (Trabalho sem Vínculo)", min_value=0.0, step=0.01, format="%.2f")
         with col_m3: ir_0561 = st.number_input("IRRF 0561 (Trabalho Assalariado)", min_value=0.0, step=0.01, format="%.2f")
 
-        # Função para capturar totais das abas
-        def obter_total(nome_aba):
+        # FUNÇÃO DE SOMA CORRIGIDA
+        def obter_total_correto(nome_aba):
             if nome_aba in xl.sheet_names:
-                df_aba = xl.parse(nome_aba)
-                if not df_aba.empty:
-                    return pd.to_numeric(df_aba.iloc[:, -1], errors='coerce').sum()
+                df = xl.parse(nome_aba)
+                if df.empty or "SEM MOVIMENTO" in str(df.iloc[0,0]).upper():
+                    return 0.0
+                
+                # Pegamos a última coluna de valores
+                col_valores = df.iloc[:, -1]
+                # Filtramos: Somamos apenas o que for número E que NÃO esteja na linha escrita "TOTAL"
+                # Para evitar a duplicidade que aconteceu na Jambo
+                df_temp = pd.DataFrame({'valores': col_valores, 'primeira_col': df.iloc[:, 0].astype(str)})
+                soma = df_temp[~df_temp['primeira_col'].str.contains("TOTAL", case=False, na=False)]['valores']
+                return round(pd.to_numeric(soma, errors='coerce').sum(), 2)
             return 0.0
 
         valores = {
-            "1708": obter_total("IRRF 1708"),
-            "8045": obter_total("IRRF 8045"),
-            "5952": obter_total("CSRF"),
-            "1162": obter_total("INSS"),
-            "3208": obter_total("IRRF 3208") if "IRRF 3208" in xl.sheet_names else 0.0
+            "1708": obter_total_correto("IRRF 1708"),
+            "8045": obter_total_correto("IRRF 8045"),
+            "5952": obter_total_correto("CSRF"),
+            "1162": obter_total_correto("INSS"),
+            "3208": obter_total_correto("IRRF 3208") if "IRRF 3208" in xl.sheet_names else 0.0
         }
 
         if st.button("🚀 Gerar Relatório Consolidado"):
@@ -69,48 +75,50 @@ if arquivo_upload:
             ws.title = "Consolidado Mensal"
             ws.sheet_view.showGridLines = False
 
-            # Estilos
             fill_azul = PatternFill(start_color='002060', end_color='002060', fill_type='solid')
             font_branca = Font(color='FFFFFF', bold=True)
             thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
             
-            # Layout do Relatório
             ws.cell(row=2, column=2, value="DCTFWeb - Relatório Mensal de Impostos Federais Consolidados").font = Font(bold=True, size=14)
             info = [["Razão social", razao_social], ["CNPJ", cnpj], ["Período de apuração", competencia], ["Responsável", "Marcos Paulo Santos de Oliveira"]]
             for i, (label, val) in enumerate(info, 4):
                 ws.cell(row=i, column=2, value=label).font = Font(bold=True)
                 ws.cell(row=i, column=5, value=val)
 
-            headers = ["Tipo", "Código Retenção RFB", "Valor Retenção", "Descrição", "Observações"]
+            headers = ["Tipo", "Código Retenção RFB", "Valor Retenção", "Descrição do Código da Receita", "Observações"]
             for c, h in enumerate(headers, 2):
                 cell = ws.cell(row=9, column=c, value=h)
                 cell.fill = fill_azul; cell.font = font_branca; cell.border = thin_border; cell.alignment = Alignment(horizontal='center')
 
             dados_finais = [
-                ["INSS", "Folha", inss_folha, "Informação transmitida via eSocial", "Evidência do RH"],
-                ["IRRF", "0588", ir_0588, "Rendimento do Trabalho sem Vínculo", ""],
-                ["IRRF", "0561", ir_0561, "Rendimento do Trabalho Assalariado", ""],
-                ["INSS", "1162", valores["1162"], "Retenção na fonte NFSe (EFD REINF)", "Memória de Cálculo"],
-                ["IRRF", "1708", valores["1708"], "Serviços Prestados PJ", ""],
-                ["IRRF", "8045", valores["8045"], "Outros Rendimentos", ""],
-                ["IRRF", "3208", valores["3208"], "Aluguéis PF", ""],
-                ["CSRF", "5952", valores["5952"], "Retenção CSRF (PCC)", ""]
+                ["INSS", "Folha", inss_folha, "Informação transmitida via eSocial", "Considerar evidência enviada pelo RH"],
+                ["IRRF", "0588", ir_0588, "IRRF - Rendimento do Trabalho sem Vínculo Empregatício", ""],
+                ["IRRF", "0561", ir_0561, "IRRF - Rendimento do Trabalho Assalariado", ""],
+                ["INSS", "1162", valores["1162"], "Informação transmitida via EFD REINF - Retenção na fonte NFSe", "Considerar memória de cálculo do fiscal"],
+                ["IRRF", "1708", valores["1708"], "IRRF - Remuneração Serviços Prestados por Pessoa Jurídica", ""],
+                ["IRRF", "8045", valores["8045"], "IRRF - Outros Rendimentos", ""],
+                ["IRRF", "3208", valores["3208"], "IRRF - Aluguéis e Royalties Pagos a Pessoa Física", ""],
+                ["CSRF", "5952", valores["5952"], "Retenção de Contribuições (PIS/COFINS/CSLL) - Retenção CSRF (PCC)", ""]
             ]
 
             for r_idx, linha in enumerate(dados_finais, 10):
                 for c_idx, valor in enumerate(linha, 2):
                     cell = ws.cell(row=r_idx, column=c_idx, value=valor)
                     cell.border = thin_border
-                    if c_idx == 4: cell.number_format = 'R$ #,##0.00'
+                    if c_idx == 4: # Coluna C (Valor)
+                        cell.number_format = 'R$ #,##0.00'
+                    if c_idx == 5: # Coluna Descrição
+                        cell.alignment = Alignment(wrapText=True)
 
-            for i, largura in enumerate([12, 18, 20, 45, 30], 2):
+            larguras = [12, 18, 20, 55, 35]
+            for i, largura in enumerate(larguras, 2):
                 ws.column_dimensions[get_column_letter(i)].width = largura
 
             wb.save(output)
             st.download_button(
                 label="📥 Baixar Relatório Consolidado",
                 data=output.getvalue(),
-                file_name=f"Consolidado - {razao_social} - {competencia}.xlsx",
+                file_name=f"Consolidado - {razao_social} - {competencia.replace('/', '_')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
