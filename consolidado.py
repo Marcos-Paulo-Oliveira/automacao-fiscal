@@ -7,22 +7,18 @@ from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 # Configuração da página
 st.set_page_config(page_title="PPC - Sistema Fiscal", page_icon="📊", layout="wide")
 
-# --- 1. FUNÇÃO DA MEMÓRIA DE CÁLCULO (O código que já funciona) ---
+# --- 1. FUNÇÃO DA MEMÓRIA DE CÁLCULO ---
 def gerador_memoria_calculo():
     st.title("📊 Gerador de Memória de Cálculo")
     st.markdown("Arraste a planilha exportada do sistema abaixo:")
-    
     arquivo_upload = st.file_uploader("Selecione o arquivo Excel", type=["xlsx"], key="memoria_up")
-    
-    # Aqui vai aquela lógica que já deixamos pronta (IRRF 1708, 8045, 3208, CSRF, etc.)
-    # Se você precisar que eu cole o código completo da memória aqui dentro, me avise!
     if arquivo_upload:
         st.info("Arquivo recebido. Processando memória de cálculo...")
 
-# --- 2. FUNÇÃO DO RELATÓRIO CONSOLIDADO (ESTRUTURA CORRIGIDA) ---
+# --- 2. FUNÇÃO DO RELATÓRIO CONSOLIDADO (ESTRUTURA FINAL REFINADA) ---
 def gerador_relatorio_consolidado():
     st.title("📄 Relatório Mensal Consolidado")
-    st.markdown("Clique no botão para baixar a estrutura oficial ajustada.")
+    st.markdown("Clique no botão para baixar a estrutura oficial com os ajustes de espaçamento e cores.")
     
     if st.button("Gerar Estrutura Oficial"):
         wb = Workbook()
@@ -41,14 +37,14 @@ def gerador_relatorio_consolidado():
         
         # Largura das colunas
         ws.column_dimensions['A'].width = 2
-        ws.column_dimensions['B'].width = 10
+        ws.column_dimensions['B'].width = 12
         ws.column_dimensions['C'].width = 15
         ws.column_dimensions['D'].width = 15
         ws.column_dimensions['E'].width = 25
         ws.column_dimensions['F'].width = 60
         ws.column_dimensions['G'].width = 40
 
-        # Título Principal (Linha 2)
+        # --- Título Principal (Linha 2) ---
         ws.merge_cells('B2:G2')
         cell_t = ws['B2']
         cell_t.value = "DCTFWeb - Relatório Mensal de Impostos Federais Consolidados"
@@ -56,23 +52,34 @@ def gerador_relatorio_consolidado():
         cell_t.fill = azul_ppc
         cell_t.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Identificação (B, C, D mesclados | E, F, G mesclados)
+        # --- Identificação (Linhas 4 a 7 - com linha 3 em branco) ---
+        # Note que a linha 3 fica vazia conforme solicitado
         dados_id = [
-            ("Razão social", "REDCLOUD TECHNOLOGIES BRASIL SERVICOS DIGITAIS LTDA"),
-            ("CNPJ", "47.597.633/0001-92"),
-            ("Período de apuração", "Fevereiro de 2026"),
-            ("Responsável preenchimento", "MARCOS PAULO SANTOS DE OLIVEIRA")
+            ("Razão social", "REDCLOUD TECHNOLOGIES BRASIL SERVICOS DIGITAIS LTDA", False),
+            ("CNPJ", "47.597.633/0001-92", False),
+            ("Período de apuração", "Fevereiro de 2026", True), # Negrito aqui
+            ("Responsável preenchimento", "MARCOS PAULO SANTOS DE OLIVEIRA", False)
         ]
 
-        for i, (label, valor) in enumerate(dados_id, 3):
+        for i, (label, valor, is_bold) in enumerate(dados_id, 4):
+            # Colunas B, C, D (Rótulo)
             ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=4)
-            ws.cell(row=i, column=2, value=label).fill = cinza_claro
-            ws.cell(row=i, column=2).font = font_preta_bold
-            
-            ws.merge_cells(start_row=i, start_column=5, end_row=i, end_column=7)
-            ws.cell(row=i, column=5, value=valor).alignment = Alignment(horizontal='left')
+            cell_label = ws.cell(row=i, column=2, value=label)
+            cell_label.fill = cinza_claro
+            cell_label.font = font_preta_bold
+            cell_label.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Cabeçalho da Tabela (Linha 9)
+            # Colunas E, F, G (Dado)
+            ws.merge_cells(start_row=i, start_column=5, end_row=i, end_column=7)
+            cell_valor = ws.cell(row=i, column=5, value=valor)
+            cell_valor.fill = cinza_claro # Agora todo o bloco é cinza
+            cell_valor.alignment = Alignment(horizontal='center', vertical='center')
+            if is_bold:
+                cell_valor.font = font_preta_bold
+
+        # Linha 8 fica em branco conforme solicitado
+
+        # --- Cabeçalho da Tabela (Linha 9) ---
         headers = ["Tipo", "Código Retenção", "Valor Retenção", "Descrição do Código da Receita", "", "Observações"]
         for col, text in zip([2, 3, 4, 5, 6, 7], headers):
             cell = ws.cell(row=9, column=col, value=text)
@@ -82,7 +89,7 @@ def gerador_relatorio_consolidado():
             cell.border = borda_fina
         ws.merge_cells('E9:F9')
 
-        # Lista de Impostos (Linha 10 em diante)
+        # --- Lista de Impostos (Linha 10 em diante) ---
         impostos = [
             ("INSS", "Folha", "Informação transmitida via eSocial", "Evidência enviada pelo RH"),
             ("IRRF", "0588", "IRRF - Rendimento do Trabalho sem Vínculo Empregatício", ""),
@@ -115,22 +122,30 @@ def gerador_relatorio_consolidado():
 
             for c in range(2, 8):
                 ws.cell(row=row_idx, column=c).border = borda_fina
-                ws.cell(row=row_idx, column=c).alignment = Alignment(horizontal='center')
+                ws.cell(row=row_idx, column=c).alignment = Alignment(horizontal='center', vertical='center')
             row_idx += 1
 
-        # Valor Total DARF (Imediatamente abaixo do CSLL)
+        # --- Valor Total DARF (Linha Final) ---
         ws.merge_cells(start_row=row_idx, start_column=2, end_row=row_idx, end_column=3)
         cell_l = ws.cell(row=row_idx, column=2, value="Valor Total DARF")
         cell_l.fill = azul_ppc
         cell_l.font = font_branca_bold
         cell_l.border = borda_fina
-        cell_l.alignment = Alignment(horizontal='center')
+        cell_l.alignment = Alignment(horizontal='center', vertical='center')
 
         cell_v = ws.cell(row=row_idx, column=4, value=0)
-        cell_v.font = Font(bold=True, color='FF0000') # Vermelho
+        cell_v.font = Font(bold=True, color='FF0000') 
         cell_v.border = borda_fina
         cell_v.number_format = 'R$ #,##0.00'
-        cell_v.alignment = Alignment(horizontal='center')
+        cell_v.alignment = Alignment(horizontal='center', vertical='center')
+
+        # Células cinzas e mescladas à frente do valor total (Colunas E e F)
+        ws.merge_cells(start_row=row_idx, start_column=5, end_row=row_idx, end_column=6)
+        cell_extra_cinza = ws.cell(row=row_idx, column=5)
+        cell_extra_cinza.fill = cinza_claro
+        cell_extra_cinza.border = borda_fina
+        # Aplicar borda também na coluna F que foi mesclada
+        ws.cell(row=row_idx, column=6).border = borda_fina
 
         output = BytesIO()
         wb.save(output)
