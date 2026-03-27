@@ -3,16 +3,12 @@ import streamlit as st
 from io import BytesIO
 from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from openpyxl.drawing.image import Image # IMPORTANTE: Adicionado para imagens
-import os # IMPORTANTE: Adicionado para localizar o arquivo no servidor
+from openpyxl.drawing.image import Image
+import os
 
 # --- CONFIGURAÇÃO DO CAMINHO DO LOGO ---
-# Como o arquivo logo.png está na raiz do repositório no GitHub,
-# o Streamlit Cloud o colocará na mesma pasta do script.
-# Usamos os.path para garantir que o caminho seja encontrado corretamente.
 diretorio_atual = os.path.dirname(os.path.abspath(__file__))
 caminho_logo = os.path.join(diretorio_atual, 'logo.png')
-# --------------------------------------
 
 # Configuração da página do site
 st.set_page_config(page_title="PPC - Gerador", page_icon="📊")
@@ -29,41 +25,48 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
     ws.sheet_view.showGridLines = False 
     ws.column_dimensions['A'].width = 3
 
-    # --- INSERÇÃO DO LOGO ---
-    # Tenta carregar e inserir o logo do arquivo caminho_logo
+    # --- INSERÇÃO DO LOGO (B2:B4 MESCLADAS) ---
     try:
         if os.path.exists(caminho_logo):
+            # Mescla as células B2, B3 e B4 para o Logo
+            ws.merge_cells('B2:B4')
+            
             img = Image(caminho_logo)
-            # Redimensiona a imagem para caber na área do cabeçalho
-            # Valores aproximados baseados no exemplo, ajuste se necessário
-            img.width = 110 
-            img.height = 30
-            # Adiciona a imagem à célula B2 (canto superior esquerdo)
+            # Ajuste de tamanho para ocupar o espaço das 3 linhas mescladas
+            img.width = 140  # Aumentado levemente para melhor visibilidade
+            img.height = 50 # Altura proporcional para 3 linhas padrão
+            
+            # Adiciona a imagem ancorada na B2
             ws.add_image(img, 'B2')
         else:
-            st.warning(f"Aviso: Arquivo de logo não encontrado em: {caminho_logo}")
+            st.warning(f"Aviso: Arquivo de logo não encontrado.")
     except Exception as e:
         st.error(f"Erro ao inserir o logo: {e}")
-    # ------------------------
 
+    # Estilos
     fill_azul = PatternFill(start_color='002060', end_color='002060', fill_type='solid')
     font_branca = Font(color='FFFFFF', bold=True)
     thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
                          top=Side(style='thin'), bottom=Side(style='thin'))
     align_center = Alignment(horizontal='center', vertical='center')
 
-    # Cabeçalho - Ajustado para alinhar com o exemplo (mesclando a partir da coluna C para deixar espaço pro logo)
-    # Define a altura da linha 2 para acomodar o logo
-    ws.row_dimensions[2].height = 30
+    # Cabeçalho de Texto (Colunas C até J)
+    # Mantendo a altura padrão das linhas para não dar diferença entre elas
+    linhas_cabecalho = [
+        f'RAZÃO SOCIAL: {razao}', 
+        f'CNPJ: {cnpj}', 
+        f'{titulo_imposto} - COMPETÊNCIA {comp}'
+    ]
 
-    for row_num, texto in enumerate([f'RAZÃO SOCIAL: {razao}', f'CNPJ: {cnpj}', f'{titulo_imposto} - COMPETÊNCIA {comp}'], 2):
-        # Mescla da coluna C (3) até J (10) para deixar espaço para o logo na coluna B
-        ws.merge_cells(start_row=row_num, start_column=3, end_row=row_num, end_column=10)
-        cell = ws.cell(row=row_num, column=3) # Texto começa na coluna C
+    for i, texto in enumerate(linhas_cabecalho):
+        row_idx = i + 2 # Começa na linha 2, depois 3, depois 4
+        ws.merge_cells(start_row=row_idx, start_column=3, end_row=row_idx, end_column=10)
+        cell = ws.cell(row=row_idx, column=3)
         cell.value = texto
         cell.alignment = align_center
-        cell.font = Font(bold=True, size=11) # Fonte um pouco menor para caber melhor
+        cell.font = Font(bold=True, size=10) # Tamanho 10 para ficar elegante e uniforme
 
+    # Cabeçalho da Tabela (Linha 6)
     for col_num, header in enumerate(colunas_mapeadas.values(), 2):
         cell = ws.cell(row=6, column=col_num)
         cell.value = header
@@ -82,8 +85,7 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
         for col_idx in range(2, 11):
             ws.cell(row=row_msg, column=col_idx).border = thin_border
     else:
-        # --- AJUSTE NO CÓDIGO DE SERVIÇO ---
-        # Forçamos a coluna de serviço a ser texto e usar ponto
+        # Forçamos a coluna de serviço a ser texto
         for col_orig, col_dest in colunas_mapeadas.items():
             if col_dest == 'Cód. Serviço':
                 df_filtrado[col_orig] = df_filtrado[col_orig].astype(str).str.replace(',', '.')
@@ -105,6 +107,7 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                 elif 'Aliq' in header_text or '%' in header_text:
                     cell.number_format = '0.00%'
 
+        # Totais
         last_row = 6 + len(dados_finais)
         row_total = last_row + 1
         ws.merge_cells(start_row=row_total, start_column=2, end_row=row_total, end_column=6)
@@ -126,32 +129,29 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                 cell_sum.font = Font(bold=True)
                 cell_sum.number_format = 'R$ #,##0.00'
 
-    # Ajuste automático de largura, ignorando coluna A e considerando espaço extra
+    # Ajuste de largura das colunas
     for col in ws.columns:
         max_length = 0
         column_letter = col[0].column_letter
         if column_letter == 'A': continue
         
-        # Para colunas de dados (da linha 6 em diante), o cálculo é automático
         for cell in col:
-            if cell.row >= 6 and cell.value: # Pula o cabeçalho no cálculo automático
+            if cell.row >= 6 and cell.value:
                 length = len(str(cell.value))
                 if length > max_length: max_length = length
         
         if max_length > 0:
             ws.column_dimensions[column_letter].width = max_length + 4
         
-        # Ajuste manual para colunas do cabeçalho que têm o logo/texto longo e mesclado
-        # No exemplo, a coluna C (onde começa o texto) precisa de largura
-        # O openpyxl não ajusta automaticamente colunas mescladas.
+        if column_letter == 'B':
+            ws.column_dimensions['B'].width = 20 # Largura suficiente para o Logo
         if column_letter == 'C':
-            ws.column_dimensions['C'].width = 25 # Ajuste manual para caber o texto
+            ws.column_dimensions['C'].width = 25
 
-# Execução (igual ao original)
+# Execução (sem alterações nesta parte)
 if arquivo_upload:
     try:
         df = pd.read_excel(arquivo_upload)
-        
         df['ISS_TOTAL'] = df['ISS Dentro do Município'].fillna(0) + df['ISS Fora do Município'].fillna(0)
         df['BASE_ISS_TOTAL'] = df['Base de Cálculo ISS'].fillna(0)
         df['ALIQ_ISS_TOTAL'] = df['% ISS Dentro do Município'].fillna(0) + df['% ISS Fora do Município'].fillna(0)
@@ -179,7 +179,6 @@ if arquivo_upload:
             aplicar_estilo_ppc(writer, df[df['Valor INSS'] > 0], m_inss, 'INSS', 'INSS', razao_cliente, cnpj_cliente, comp_titulo)
 
         st.success(f"✅ Memória de Cálculo de {razao_cliente} pronta!")
-        
         st.download_button(
             label="📥 Baixar Memória de Cálculo",
             data=output.getvalue(),
