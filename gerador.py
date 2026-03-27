@@ -35,7 +35,6 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
     ultima_col_idx = len(colunas_mapeadas) + 1
     
     for row_num, texto in enumerate(textos_cabecalho, 2):
-        # Mescla exatamente da coluna B até a última coluna de dados
         ws.merge_cells(start_row=row_num, start_column=2, end_row=row_num, end_column=ultima_col_idx)
         cell = ws.cell(row=row_num, column=2)
         cell.value = texto
@@ -61,7 +60,6 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
         for col_idx in range(2, ultima_col_idx + 1):
             ws.cell(row=row_msg, column=col_idx).border = thin_border
     else:
-        # Tratamento do Código de Serviço
         for col_orig, col_dest in colunas_mapeadas.items():
             if col_dest == 'Cód. Serviço':
                 df_filtrado[col_orig] = df_filtrado[col_orig].astype(str).str.replace(',', '.')
@@ -69,13 +67,12 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
         dados_finais = df_filtrado[list(colunas_mapeadas.keys())].rename(columns=colunas_mapeadas)
         moeda_cols = ['Vlr Contábil', 'Base IRRF', 'Valor IRRF', 'Base CSR', 'Total PCC', 'ISS', 'Valor INSS', 'Base INSS', 'Base ISS']
         
-        # --- PREENCHIMENTO DOS DADOS CENTRALIZADOS ---
         for r_idx, row in enumerate(dados_finais.values, 7):
             for c_idx, value in enumerate(row, 2):
                 cell = ws.cell(row=r_idx, column=c_idx)
                 cell.value = value
                 cell.border = thin_border
-                cell.alignment = align_center # CENTRALIZAÇÃO DE TODAS AS CÉLULAS
+                cell.alignment = align_center 
                 
                 header_text = list(colunas_mapeadas.values())[c_idx-2]
                 if header_text in moeda_cols:
@@ -85,7 +82,6 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                 elif 'Aliq' in header_text or '%' in header_text:
                     cell.number_format = '0.00%'
 
-        # --- TOTAIS ---
         last_row = 6 + len(dados_finais)
         row_total = last_row + 1
         ws.merge_cells(start_row=row_total, start_column=2, end_row=row_total, end_column=6)
@@ -108,24 +104,17 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                 cell_sum.alignment = align_center
                 cell_sum.number_format = 'R$ #,##0.00'
 
-    # --- AJUSTE DE LARGURA INTELIGENTE ---
-    # Para evitar o "espaço gigante", calculamos a largura apenas das linhas 6 em diante
     for col in ws.columns:
         max_length = 0
         column_letter = col[0].column_letter
         if column_letter == 'A': continue
-        
         for cell in col:
-            # Ignora as linhas mescladas (2, 3, 4) para o cálculo de largura
             if cell.row >= 6 and cell.value:
                 val_str = str(cell.value)
-                # Se for fórmula de soma, estimamos o tamanho do resultado formatado
                 if isinstance(cell.value, str) and cell.value.startswith('='):
                     val_str = "R$ 00.000,00" 
-                
                 if len(val_str) > max_length:
                     max_length = len(val_str)
-        
         ws.column_dimensions[column_letter].width = max_length + 5
 
 # --- PARTE DE EXECUÇÃO ---
@@ -150,12 +139,14 @@ if arquivo_upload:
             m_1708 = {**m_base, 'Base de Cálculo ISS': 'Base IRRF', '% IRRF': 'Aliq. IRRF', 'Valor IRRF': 'Valor IRRF'}
             m_csrf = {**m_base, 'Base de Cálculo ISS': 'Base CSR', '% CSRF': 'Aliq. CSRF', 'Valor CSRF': 'Total PCC'}
             m_8045 = {**m_base, 'Base de Cálculo ISS': 'Base IRRF', '% IRRF': 'Aliq. IRRF', 'Valor IRRF': 'Valor IRRF'}
+            m_3208 = {**m_base, 'Base de Cálculo ISS': 'Base IRRF', '% IRRF': 'Aliq. IRRF', 'Valor IRRF': 'Valor IRRF'}
             m_iss = {**m_base, 'BASE_ISS_TOTAL': 'Base ISS', 'ALIQ_ISS_TOTAL': 'Aliq. ISS', 'ISS_TOTAL': 'ISS'}
             m_inss = {**m_base, 'Base de Cálculo INSS': 'Base INSS', '% INSS': 'Aliq. INSS', 'Valor INSS': 'Valor INSS'}
 
             aplicar_estilo_ppc(writer, df[df['DARF IRRF'] == 1708], m_1708, 'IRRF 1708', 'IRRF 1708', razao_cliente, cnpj_cliente, comp_titulo)
             aplicar_estilo_ppc(writer, df[df['DARF CSRF'] == 5952], m_csrf, 'CSRF', 'CSRF', razao_cliente, cnpj_cliente, comp_titulo)
             aplicar_estilo_ppc(writer, df[df['DARF IRRF'] == 8045], m_8045, 'IRRF 8045', 'IRRF 8045', razao_cliente, cnpj_cliente, comp_titulo)
+            aplicar_estilo_ppc(writer, df[df['DARF IRRF'] == 3208], m_3208, 'IRRF 3208', 'IRRF 3208', razao_cliente, cnpj_cliente, comp_titulo)
             aplicar_estilo_ppc(writer, df[df['ISS_TOTAL'] > 0], m_iss, 'ISS', 'ISS', razao_cliente, cnpj_cliente, comp_titulo)
             aplicar_estilo_ppc(writer, df[df['Valor INSS'] > 0], m_inss, 'INSS', 'INSS', razao_cliente, cnpj_cliente, comp_titulo)
 
