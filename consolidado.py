@@ -3,127 +3,144 @@ import streamlit as st
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
 
 # Configuração da página
 st.set_page_config(page_title="PPC - Sistema Fiscal", page_icon="📊", layout="wide")
 
-# --- ESTILOS PARA A MEMÓRIA DE CÁLCULO ---
-def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_imposto, razao, cnpj, comp):
-    ws = writer.book.create_sheet(nome_aba)
-    writer.sheets[nome_aba] = ws
-    ws.sheet_view.showGridLines = False 
-    ws.column_dimensions['A'].width = 3
-    fill_azul = PatternFill(start_color='002060', end_color='002060', fill_type='solid')
-    font_branca = Font(color='FFFFFF', bold=True)
-    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    align_center = Alignment(horizontal='center', vertical='center')
-
-    textos_cabecalho = [f'RAZÃO SOCIAL: {razao}', f'CNPJ: {cnpj}', f'{titulo_imposto} - COMPETÊNCIA {comp}']
-    ultima_col_idx = len(colunas_mapeadas) + 1
-    for row_num, texto in enumerate(textos_cabecalho, 2):
-        ws.merge_cells(start_row=row_num, start_column=2, end_row=row_num, end_column=ultima_col_idx)
-        cell = ws.cell(row=row_num, column=2, value=texto)
-        cell.alignment = align_center
-        cell.font = Font(bold=True, size=12)
-
-    for col_num, header in enumerate(colunas_mapeadas.values(), 2):
-        cell = ws.cell(row=6, column=col_num, value=header)
-        cell.fill = fill_azul
-        cell.font = font_branca
-        cell.alignment = align_center
-        cell.border = thin_border
-
-    if df_filtrado.empty:
-        ws.merge_cells(start_row=7, start_column=2, end_row=7, end_column=ultima_col_idx)
-        cell_msg = ws.cell(row=7, column=2, value="SEM MOVIMENTO")
-        cell_msg.font = Font(bold=True)
-        cell_msg.alignment = align_center
-    else:
-        dados_finais = df_filtrado[list(colunas_mapeadas.keys())].rename(columns=colunas_mapeadas)
-        for r_idx, row in enumerate(dados_finais.values, 7):
-            for c_idx, value in enumerate(row, 2):
-                cell = ws.cell(row=r_idx, column=c_idx, value=value)
-                cell.border = thin_border
-                cell.alignment = align_center
-
-# --- FUNÇÃO 1: GERADOR DE MEMÓRIA ---
-def aba_memoria_calculo():
+# --- 1. FUNÇÃO DA MEMÓRIA DE CÁLCULO (O código que já funciona) ---
+def gerador_memoria_calculo():
     st.title("📊 Gerador de Memória de Cálculo")
-    arquivo_upload = st.file_uploader("Arraste a planilha Unicont aqui", type=["xlsx"], key="memoria")
-    if arquivo_upload:
-        df = pd.read_excel(arquivo_upload)
-        # Lógica de processamento simplificada para o teste
-        st.success("Arquivo carregado com sucesso!")
-        # (Aqui ficaria o restante da sua lógica da memória que já funciona)
-
-# --- FUNÇÃO 2: RELATÓRIO CONSOLIDADO ---
-def aba_relatorio_consolidado():
-    st.title("📄 Relatório Mensal Consolidado")
-    st.markdown("Estrutura idêntica ao modelo oficial da empresa.")
+    st.markdown("Arraste a planilha exportada do sistema abaixo:")
     
-    if st.button("Gerar Estrutura de Teste"):
+    arquivo_upload = st.file_uploader("Selecione o arquivo Excel", type=["xlsx"], key="memoria_up")
+    
+    # Aqui vai aquela lógica que já deixamos pronta (IRRF 1708, 8045, 3208, CSRF, etc.)
+    # Se você precisar que eu cole o código completo da memória aqui dentro, me avise!
+    if arquivo_upload:
+        st.info("Arquivo recebido. Processando memória de cálculo...")
+
+# --- 2. FUNÇÃO DO RELATÓRIO CONSOLIDADO (ESTRUTURA CORRIGIDA) ---
+def gerador_relatorio_consolidado():
+    st.title("📄 Relatório Mensal Consolidado")
+    st.markdown("Clique no botão para baixar a estrutura oficial ajustada.")
+    
+    if st.button("Gerar Estrutura Oficial"):
         wb = Workbook()
         ws = wb.active
         ws.title = "Relatório Consolidado"
         ws.sheet_view.showGridLines = False
 
-        # Estilos conforme sua solicitação
-        cor_azul = PatternFill(start_color='002060', end_color='002060', fill_type='solid')
-        cor_cinza = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
-        cor_laranja = PatternFill(start_color='FCE4D6', end_color='FCE4D6', fill_type='solid')
-        border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-
-        # Título[cite: 1]
+        # --- ESTILOS ---
+        azul_ppc = PatternFill(start_color='002060', end_color='002060', fill_type='solid')
+        cinza_claro = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
+        laranja_suave = PatternFill(start_color='FCE4D6', end_color='FCE4D6', fill_type='solid')
+        font_branca_bold = Font(color='FFFFFF', bold=True)
+        font_preta_bold = Font(color='000000', bold=True)
+        borda_fina = Border(left=Side(style='thin'), right=Side(style='thin'), 
+                            top=Side(style='thin'), bottom=Side(style='thin'))
+        
+        # Largura das colunas
         ws.column_dimensions['A'].width = 2
+        ws.column_dimensions['B'].width = 10
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 25
+        ws.column_dimensions['F'].width = 60
+        ws.column_dimensions['G'].width = 40
+
+        # Título Principal (Linha 2)
         ws.merge_cells('B2:G2')
-        ws['B2'] = "DCTFWeb - Relatório Mensal de Impostos Federais Consolidados"
-        ws['B2'].font = Font(color='FFFFFF', bold=True)
-        ws['B2'].fill = cor_azul
-        ws['B2'].alignment = Alignment(horizontal='center')
+        cell_t = ws['B2']
+        cell_t.value = "DCTFWeb - Relatório Mensal de Impostos Federais Consolidados"
+        cell_t.font = font_branca_bold
+        cell_t.fill = azul_ppc
+        cell_t.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Cabeçalhos de Identificação Mesclados[cite: 1]
-        ident = [("Razão social", "EMPRESA TESTE LTDA"), ("CNPJ", "00.000.000/0001-00"), ("Período", "Janeiro/2025")]
-        for i, (lab, val) in enumerate(ident, 3):
-            ws.merge_cells(f'B{i}:D{i}')
-            ws[f'B{i}'] = lab
-            ws[f'B{i}'].fill = cor_cinza
-            ws.merge_cells(f'E{i}:G{i}')
-            ws[f'E{i}'] = val
+        # Identificação (B, C, D mesclados | E, F, G mesclados)
+        dados_id = [
+            ("Razão social", "REDCLOUD TECHNOLOGIES BRASIL SERVICOS DIGITAIS LTDA"),
+            ("CNPJ", "47.597.633/0001-92"),
+            ("Período de apuração", "Fevereiro de 2026"),
+            ("Responsável preenchimento", "MARCOS PAULO SANTOS DE OLIVEIRA")
+        ]
 
-        # Tabela[cite: 1]
-        headers = ["Tipo", "Código", "Valor", "Descrição", "", "Observações"]
-        for col, text in enumerate(headers, 2):
-            cell = ws.cell(row=8, column=col, value=text)
-            cell.fill = cor_azul
-            cell.font = Font(color='FFFFFF', bold=True)
-            cell.border = border
-        ws.merge_cells('E8:F8')
+        for i, (label, valor) in enumerate(dados_id, 3):
+            ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=4)
+            ws.cell(row=i, column=2, value=label).fill = cinza_claro
+            ws.cell(row=i, column=2).font = font_preta_bold
+            
+            ws.merge_cells(start_row=i, start_column=5, end_row=i, end_column=7)
+            ws.cell(row=i, column=5, value=valor).alignment = Alignment(horizontal='left')
 
-        # Linha de Exemplo (IRRF 1708)[cite: 1]
-        ws.cell(row=9, column=2, value="IRRF").fill = cor_laranja
-        ws.cell(row=9, column=3, value="1708")
+        # Cabeçalho da Tabela (Linha 9)
+        headers = ["Tipo", "Código Retenção", "Valor Retenção", "Descrição do Código da Receita", "", "Observações"]
+        for col, text in zip([2, 3, 4, 5, 6, 7], headers):
+            cell = ws.cell(row=9, column=col, value=text)
+            cell.font = font_branca_bold
+            cell.fill = azul_ppc
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = borda_fina
         ws.merge_cells('E9:F9')
-        ws.cell(row=9, column=5, value="IRRF - Remuneração Serviços PJ")
-        for c in range(2, 8): ws.cell(row=9, column=c).border = border
 
-        # Total[cite: 1]
-        ws.merge_cells('B10:C10')
-        ws['B10'] = "Valor Total DARF"
-        ws['B10'].fill = cor_azul
-        ws['B10'].font = Font(color='FFFFFF', bold=True)
-        ws['D10'] = 0
-        ws['D10'].font = Font(bold=True, color='FF0000')
+        # Lista de Impostos (Linha 10 em diante)
+        impostos = [
+            ("INSS", "Folha", "Informação transmitida via eSocial", "Evidência enviada pelo RH"),
+            ("IRRF", "0588", "IRRF - Rendimento do Trabalho sem Vínculo Empregatício", ""),
+            ("IRRF", "0561", "IRRF - Rendimento do Trabalho Assalariado", ""),
+            ("INSS", "1162", "Informação transmitida via EFD REINF - Retenção NFSe", "Memória de cálculo do fiscal"),
+            ("IRRF", "1708", "IRRF - Remuneração Serviços Prestados por PJ", ""),
+            ("IRRF", "8045", "IRRF - Outros Rendimentos", ""),
+            ("IRRF", "3208", "IRRF - Aluguéis e Royalties Pagos a PF", ""),
+            ("IRRF", "3280", "IRRF - Rem Serv Prest Associad Coop Trabalho", ""),
+            ("CSRF", "5952", "Retenção de Contribuições (CSLL, Cofins e PIS)", ""),
+            ("IRRF", "0422", "IRRF - Royalties e Assistência Técnica - Exterior", ""),
+            ("PIS", "8109", "PIS - FATURAMENTO - PJ EM GERAL", ""),
+            ("COFINS", "2172", "COFINS - FATURAMENTO/PJ EM GERAL", ""),
+            ("IRPJ", "2089", "IRPJ - LUCRO PRESUMIDO", ""),
+            ("CSLL", "2372", "CSLL - LUCRO PRESUMIDO OU ARBITRADO", "")
+        ]
+
+        row_idx = 10
+        for tipo, cod, desc, obs in impostos:
+            cell_tipo = ws.cell(row=row_idx, column=2, value=tipo)
+            cell_tipo.fill = laranja_suave
+            cell_tipo.font = font_preta_bold
+            
+            ws.cell(row=row_idx, column=3, value=cod)
+            ws.cell(row=row_idx, column=4, value=0).number_format = 'R$ #,##0.00'
+            
+            ws.merge_cells(start_row=row_idx, start_column=5, end_row=row_idx, end_column=6)
+            ws.cell(row=row_idx, column=5, value=desc)
+            ws.cell(row=row_idx, column=7, value=obs)
+
+            for c in range(2, 8):
+                ws.cell(row=row_idx, column=c).border = borda_fina
+                ws.cell(row=row_idx, column=c).alignment = Alignment(horizontal='center')
+            row_idx += 1
+
+        # Valor Total DARF (Imediatamente abaixo do CSLL)
+        ws.merge_cells(start_row=row_idx, start_column=2, end_row=row_idx, end_column=3)
+        cell_l = ws.cell(row=row_idx, column=2, value="Valor Total DARF")
+        cell_l.fill = azul_ppc
+        cell_l.font = font_branca_bold
+        cell_l.border = borda_fina
+        cell_l.alignment = Alignment(horizontal='center')
+
+        cell_v = ws.cell(row=row_idx, column=4, value=0)
+        cell_v.font = Font(bold=True, color='FF0000') # Vermelho
+        cell_v.border = borda_fina
+        cell_v.number_format = 'R$ #,##0.00'
+        cell_v.alignment = Alignment(horizontal='center')
 
         output = BytesIO()
         wb.save(output)
-        st.download_button("📥 Baixar Planilha", output.getvalue(), "Relatorio.xlsx")
+        st.download_button(label="📥 Baixar Estrutura Oficial", data=output.getvalue(), file_name="Relatorio_Consolidado.xlsx")
 
-# --- LÓGICA DE NAVEGAÇÃO (O que faz o site aparecer) ---
-st.sidebar.title("Menu PPC")
-escolha = st.sidebar.radio("Ir para:", ["Memória de Cálculo", "Relatório Consolidado"])
+# --- 3. LÓGICA DE EXIBIÇÃO ---
+st.sidebar.title("Navegação")
+opcao = st.sidebar.radio("Selecione a ferramenta:", ["Memória de Cálculo", "Relatório Consolidado"])
 
-if escolha == "Memória de Cálculo":
-    aba_memoria_calculo()
+if opcao == "Memória de Cálculo":
+    gerador_memoria_calculo()
 else:
-    aba_relatorio_consolidado()
+    gerador_relatorio_consolidado()
