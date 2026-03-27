@@ -18,7 +18,7 @@ def gerador_memoria_calculo():
 # --- 2. FUNÇÃO DO RELATÓRIO CONSOLIDADO (ESTRUTURA FINAL REFINADA) ---
 def gerador_relatorio_consolidado():
     st.title("📄 Relatório Mensal Consolidado")
-    st.markdown("Clique no botão para baixar a estrutura oficial com os ajustes de espaçamento e cores.")
+    st.markdown("Clique no botão para baixar a estrutura oficial com os ajustes finais de alinhamento e mesclagem.")
     
     if st.button("Gerar Estrutura Oficial"):
         wb = Workbook()
@@ -52,32 +52,29 @@ def gerador_relatorio_consolidado():
         cell_t.fill = azul_ppc
         cell_t.alignment = Alignment(horizontal='center', vertical='center')
 
-        # --- Identificação (Linhas 4 a 7 - com linha 3 em branco) ---
-        # Note que a linha 3 fica vazia conforme solicitado
+        # --- Identificação (Linhas 4 a 7) ---
         dados_id = [
             ("Razão social", "REDCLOUD TECHNOLOGIES BRASIL SERVICOS DIGITAIS LTDA", False),
             ("CNPJ", "47.597.633/0001-92", False),
-            ("Período de apuração", "Fevereiro de 2026", True), # Negrito aqui
+            ("Período de apuração", "Fevereiro de 2026", True),
             ("Responsável preenchimento", "MARCOS PAULO SANTOS DE OLIVEIRA", False)
         ]
 
         for i, (label, valor, is_bold) in enumerate(dados_id, 4):
-            # Colunas B, C, D (Rótulo)
+            # Colunas B, C, D (Rótulo) - Centralizado
             ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=4)
             cell_label = ws.cell(row=i, column=2, value=label)
             cell_label.fill = cinza_claro
             cell_label.font = font_preta_bold
             cell_label.alignment = Alignment(horizontal='center', vertical='center')
 
-            # Colunas E, F, G (Dado)
+            # Colunas E, F, G (Dado) - Alinhado à Esquerda conforme solicitado
             ws.merge_cells(start_row=i, start_column=5, end_row=i, end_column=7)
             cell_valor = ws.cell(row=i, column=5, value=valor)
-            cell_valor.fill = cinza_claro # Agora todo o bloco é cinza
-            cell_valor.alignment = Alignment(horizontal='center', vertical='center')
+            cell_valor.fill = cinza_claro
+            cell_valor.alignment = Alignment(horizontal='left', vertical='center', indent=1)
             if is_bold:
                 cell_valor.font = font_preta_bold
-
-        # Linha 8 fica em branco conforme solicitado
 
         # --- Cabeçalho da Tabela (Linha 9) ---
         headers = ["Tipo", "Código Retenção", "Valor Retenção", "Descrição do Código da Receita", "", "Observações"]
@@ -139,13 +136,14 @@ def gerador_relatorio_consolidado():
         cell_v.number_format = 'R$ #,##0.00'
         cell_v.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Células cinzas e mescladas à frente do valor total (Colunas E e F)
-        ws.merge_cells(start_row=row_idx, start_column=5, end_row=row_idx, end_column=6)
+        # AJUSTE SOLICITADO: Mesclagem cinza das colunas E, F e G
+        ws.merge_cells(start_row=row_idx, start_column=5, end_row=row_idx, end_column=7)
         cell_extra_cinza = ws.cell(row=row_idx, column=5)
         cell_extra_cinza.fill = cinza_claro
-        cell_extra_cinza.border = borda_fina
-        # Aplicar borda também na coluna F que foi mesclada
-        ws.cell(row=row_idx, column=6).border = borda_fina
+        
+        # Aplicar bordas em todo o bloco mesclado (E, F e G)
+        for col_final in range(5, 8):
+            ws.cell(row=row_idx, column=col_final).border = borda_fina
 
         output = BytesIO()
         wb.save(output)
