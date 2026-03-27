@@ -3,6 +3,16 @@ import streamlit as st
 from io import BytesIO
 from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.drawing.image import Image # IMPORTANTE: Adicionado para imagens
+import os # IMPORTANTE: Adicionado para localizar o arquivo no servidor
+
+# --- CONFIGURAÇÃO DO CAMINHO DO LOGO ---
+# Como o arquivo logo.png está na raiz do repositório no GitHub,
+# o Streamlit Cloud o colocará na mesma pasta do script.
+# Usamos os.path para garantir que o caminho seja encontrado corretamente.
+diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+caminho_logo = os.path.join(diretorio_atual, 'logo.png')
+# --------------------------------------
 
 # Configuração da página do site
 st.set_page_config(page_title="PPC - Gerador", page_icon="📊")
@@ -19,19 +29,40 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
     ws.sheet_view.showGridLines = False 
     ws.column_dimensions['A'].width = 3
 
+    # --- INSERÇÃO DO LOGO ---
+    # Tenta carregar e inserir o logo do arquivo caminho_logo
+    try:
+        if os.path.exists(caminho_logo):
+            img = Image(caminho_logo)
+            # Redimensiona a imagem para caber na área do cabeçalho
+            # Valores aproximados baseados no exemplo, ajuste se necessário
+            img.width = 110 
+            img.height = 30
+            # Adiciona a imagem à célula B2 (canto superior esquerdo)
+            ws.add_image(img, 'B2')
+        else:
+            st.warning(f"Aviso: Arquivo de logo não encontrado em: {caminho_logo}")
+    except Exception as e:
+        st.error(f"Erro ao inserir o logo: {e}")
+    # ------------------------
+
     fill_azul = PatternFill(start_color='002060', end_color='002060', fill_type='solid')
     font_branca = Font(color='FFFFFF', bold=True)
     thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
                          top=Side(style='thin'), bottom=Side(style='thin'))
     align_center = Alignment(horizontal='center', vertical='center')
 
-    # Cabeçalho
+    # Cabeçalho - Ajustado para alinhar com o exemplo (mesclando a partir da coluna C para deixar espaço pro logo)
+    # Define a altura da linha 2 para acomodar o logo
+    ws.row_dimensions[2].height = 30
+
     for row_num, texto in enumerate([f'RAZÃO SOCIAL: {razao}', f'CNPJ: {cnpj}', f'{titulo_imposto} - COMPETÊNCIA {comp}'], 2):
-        ws.merge_cells(start_row=row_num, start_column=2, end_row=row_num, end_column=10)
-        cell = ws.cell(row=row_num, column=2)
+        # Mescla da coluna C (3) até J (10) para deixar espaço para o logo na coluna B
+        ws.merge_cells(start_row=row_num, start_column=3, end_row=row_num, end_column=10)
+        cell = ws.cell(row=row_num, column=3) # Texto começa na coluna C
         cell.value = texto
         cell.alignment = align_center
-        cell.font = Font(bold=True, size=12)
+        cell.font = Font(bold=True, size=11) # Fonte um pouco menor para caber melhor
 
     for col_num, header in enumerate(colunas_mapeadas.values(), 2):
         cell = ws.cell(row=6, column=col_num)
@@ -95,17 +126,28 @@ def aplicar_estilo_ppc(writer, df_filtrado, colunas_mapeadas, nome_aba, titulo_i
                 cell_sum.font = Font(bold=True)
                 cell_sum.number_format = 'R$ #,##0.00'
 
+    # Ajuste automático de largura, ignorando coluna A e considerando espaço extra
     for col in ws.columns:
         max_length = 0
         column_letter = col[0].column_letter
         if column_letter == 'A': continue
+        
+        # Para colunas de dados (da linha 6 em diante), o cálculo é automático
         for cell in col:
-            if cell.value:
+            if cell.row >= 6 and cell.value: # Pula o cabeçalho no cálculo automático
                 length = len(str(cell.value))
                 if length > max_length: max_length = length
-        ws.column_dimensions[column_letter].width = max_length + 4
+        
+        if max_length > 0:
+            ws.column_dimensions[column_letter].width = max_length + 4
+        
+        # Ajuste manual para colunas do cabeçalho que têm o logo/texto longo e mesclado
+        # No exemplo, a coluna C (onde começa o texto) precisa de largura
+        # O openpyxl não ajusta automaticamente colunas mescladas.
+        if column_letter == 'C':
+            ws.column_dimensions['C'].width = 25 # Ajuste manual para caber o texto
 
-# Execução
+# Execução (igual ao original)
 if arquivo_upload:
     try:
         df = pd.read_excel(arquivo_upload)
